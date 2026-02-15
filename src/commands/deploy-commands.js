@@ -9,6 +9,7 @@ import { data as onDuty } from "./on-duty.js";
 import { data as notifyPreference } from "./notify-preference.js";
 import { data as registerAdmin } from "./register-admin.js";
 import { data as removeAdmin } from "./remove-admin.js";
+import { data as listRoster } from "./list-roster.js";
 
 config();
 
@@ -22,6 +23,7 @@ const commands = [
   notifyPreference,
   registerAdmin,
   removeAdmin,
+  listRoster,
 ].map((cmd) => cmd.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);

@@ -16,6 +16,7 @@ import * as onDuty from "./commands/on-duty.js";
 import * as notifyPreference from "./commands/notify-preference.js";
 import * as registerAdmin from "./commands/register-admin.js";
 import * as removeAdmin from "./commands/remove-admin.js";
+import * as listRoster from "./commands/list-roster.js";
 
 // --- Discord Client Setup ---
 const client = new Client({
@@ -35,6 +36,7 @@ const commandModules = [
   notifyPreference,
   registerAdmin,
   removeAdmin,
+  listRoster,
 ];
 
 for (const mod of commandModules) {
