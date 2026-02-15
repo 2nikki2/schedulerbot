@@ -1,0 +1,38 @@
+---
+alwaysApply: true
+---
+
+# Vincore Mod Scheduler - Project Context
+
+## Product Overview
+Discord Moderator Shift Scheduler with automated ping system for shift accountability.
+
+## Key Technical Constraints
+- **Timezone-Safe**: Must handle global timezones + DST transitions correctly
+- **Deterministic Rotation**: 3-week weekend on-call rotation must survive restarts/DST changes
+- **Continuous Scheduling**: 60-second tick scheduler (not cron-based)
+- **Luxon Required**: All timezone handling via Luxon (no manual offset math)
+- **No Drift**: Ping intervals must remain precise (30min weekday, 45min weekend)
+
+## Core Systems to Architect
+1. **Schedule Engine** - Shift eligibility determination
+2. **Rotation Engine** - Weekend group index calculation  
+3. **Ping Engine** - Interval-based reminder dispatch
+4. **Command Controller** - Slash command handling with Admin role checks
+
+## Critical Edge Cases
+- DST transitions must not affect rotation index
+- Rotation must wrap correctly after 3 weeks
+- System restart must not break ping intervals (requires DB persistence)
+- Mod timezone validation against IANA list
+
+## Tech Stack
+- Node.js + Discord.js
+- Luxon (timezone/DST)
+- SQLite v1 (escalate to Supabase if needed)
+- Railway/Fly/VPS deployment
+
+## Performance Requirements
+- Max latency per tick: 200ms
+- Future-proof for 50 mods
+- No blocking synchronous code

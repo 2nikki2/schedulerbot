@@ -1,0 +1,17 @@
+{
+  "name": "vincore-mod-scheduler",
+  "version": "1.0.0",
+  "description": "Discord Moderator Shift Scheduler with automated ping system for Vincore",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "deploy-commands": "node src/commands/deploy-commands.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "discord.js": "^14.16.0",
+    "dotenv": "^16.4.0",
+    "luxon": "^3.5.0"
+  }
+}
