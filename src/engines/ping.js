@@ -20,6 +20,7 @@ import {
   getPingChannelId,
   getSetting,
   setSetting,
+  getAllAdmins,
 } from "../db/database.js";
 
 const TICK_INTERVAL_MS = 60_000; // 60 seconds
@@ -217,25 +218,33 @@ async function sendPing(channelId, userId, configName, preference, message) {
 }
 
 /**
- * Post a non-pinging admin-visible log message in the scheduler channel.
- * @param {import('discord.js').TextChannel|null} channel
- * @param {string} configName
- * @param {string} message
+ * DM all registered admins with a log message.
+ * Only sends to users added via /register-admin.
+ *
+ * @param {import('discord.js').TextChannel|null} channel - unused, kept for signature compat
+ * @param {string} configName - Mod config name
+ * @param {string} message - The notification text
  */
 async function sendAdminNotification(channel, configName, message) {
-  if (!channel) return;
+  if (!discordClient) return;
 
-  try {
-    const adminRoleName = process.env.ADMIN_ROLE_NAME || "Admin";
-    const guild = channel.guild;
-    const adminRole = guild.roles.cache.find((r) => r.name === adminRoleName);
-    const roleMention = adminRole ? `<@&${adminRole.id}>` : `@${adminRoleName}`;
+  const admins = getAllAdmins();
+  if (admins.length === 0) return;
 
-    await channel.send(
-      `📋 **[Admin Log]** ${roleMention} — **${configName}** ${message}`
-    );
-  } catch (err) {
-    console.error(`[PingEngine] Admin notification failed:`, err.message);
+  const adminMessage = `📋 **[Admin Log]** **${configName}** ${message}`;
+
+  for (const admin of admins) {
+    try {
+      const user = await discordClient.users.fetch(admin.discord_user_id);
+      if (user) {
+        await user.send(adminMessage);
+      }
+    } catch (err) {
+      console.error(
+        `[PingEngine] Admin DM failed for ${admin.discord_user_id}:`,
+        err.message
+      );
+    }
   }
 }
 

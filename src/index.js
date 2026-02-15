@@ -14,6 +14,8 @@ import * as weekendOncall from "./commands/weekend-oncall.js";
 import * as myShifts from "./commands/my-shifts.js";
 import * as onDuty from "./commands/on-duty.js";
 import * as notifyPreference from "./commands/notify-preference.js";
+import * as registerAdmin from "./commands/register-admin.js";
+import * as removeAdmin from "./commands/remove-admin.js";
 
 // --- Discord Client Setup ---
 const client = new Client({
@@ -31,6 +33,8 @@ const commandModules = [
   myShifts,
   onDuty,
   notifyPreference,
+  registerAdmin,
+  removeAdmin,
 ];
 
 for (const mod of commandModules) {

@@ -38,6 +38,10 @@ db.exec(`
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS admins (
+    discord_user_id TEXT PRIMARY KEY
+  );
 `);
 
 // --- Migration: add notify_preference column if missing ---
@@ -154,6 +158,26 @@ export function getPingChannelId() {
 
 export function setPingChannelId(channelId) {
   setSetting("ping_channel_id", channelId);
+}
+
+// --- Admin Registry ---
+
+const stmtInsertAdmin = db.prepare(`
+  INSERT OR IGNORE INTO admins (discord_user_id) VALUES (?)
+`);
+const stmtDeleteAdmin = db.prepare(`DELETE FROM admins WHERE discord_user_id = ?`);
+const stmtGetAllAdmins = db.prepare(`SELECT * FROM admins`);
+
+export function registerAdmin(discordUserId) {
+  stmtInsertAdmin.run(discordUserId);
+}
+
+export function removeAdmin(discordUserId) {
+  stmtDeleteAdmin.run(discordUserId);
+}
+
+export function getAllAdmins() {
+  return stmtGetAllAdmins.all();
 }
 
 // --- Cleanup ---
