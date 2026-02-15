@@ -31,7 +31,7 @@ export const schedulerConfig = {
   ],
 
   weekendRotation: {
-    rotationStartDate: "2026-02-01",
+    rotationStartDate: "2026-02-15",
     cycleLengthWeeks: 3,
 
     weekends: [

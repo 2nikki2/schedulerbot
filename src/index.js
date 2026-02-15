@@ -13,6 +13,7 @@ import * as setChannel from "./commands/set-channel.js";
 import * as weekendOncall from "./commands/weekend-oncall.js";
 import * as myShifts from "./commands/my-shifts.js";
 import * as onDuty from "./commands/on-duty.js";
+import * as notifyPreference from "./commands/notify-preference.js";
 
 // --- Discord Client Setup ---
 const client = new Client({
@@ -29,6 +30,7 @@ const commandModules = [
   weekendOncall,
   myShifts,
   onDuty,
+  notifyPreference,
 ];
 
 for (const mod of commandModules) {

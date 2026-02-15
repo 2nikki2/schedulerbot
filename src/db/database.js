@@ -4,7 +4,10 @@ import { fileURLToPath } from "url";
 import { mkdirSync } from "fs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DB_PATH = join(__dirname, "..", "..", "data", "scheduler.db");
+
+// Use DATABASE_PATH env var (Railway persistent volume) or fallback to local ./data/
+const DB_PATH = process.env.DATABASE_PATH
+  || join(__dirname, "..", "..", "data", "scheduler.db");
 
 // Ensure data directory exists
 mkdirSync(dirname(DB_PATH), { recursive: true });
@@ -20,7 +23,8 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS mods (
     config_name TEXT PRIMARY KEY,
     discord_user_id TEXT NOT NULL UNIQUE,
-    timezone TEXT NOT NULL
+    timezone TEXT NOT NULL,
+    notify_preference TEXT NOT NULL DEFAULT 'dm'
   );
 
   CREATE TABLE IF NOT EXISTS ping_state (
@@ -35,6 +39,13 @@ db.exec(`
     value TEXT NOT NULL
   );
 `);
+
+// --- Migration: add notify_preference column if missing ---
+try {
+  db.exec(`ALTER TABLE mods ADD COLUMN notify_preference TEXT NOT NULL DEFAULT 'dm'`);
+} catch (_) {
+  // Column already exists — ignore
+}
 
 // --- Mod Registry (FR24) ---
 
@@ -73,6 +84,16 @@ export function getModByUserId(discordUserId) {
 
 export function getAllMods() {
   return stmtGetAllMods.all();
+}
+
+// --- Notify Preference ---
+
+const stmtUpdateNotifyPref = db.prepare(`
+  UPDATE mods SET notify_preference = ? WHERE config_name = ?
+`);
+
+export function setNotifyPreference(configName, preference) {
+  stmtUpdateNotifyPref.run(preference, configName);
 }
 
 // --- Ping State (FR25) ---

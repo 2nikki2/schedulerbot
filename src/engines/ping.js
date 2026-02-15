@@ -1,20 +1,25 @@
 import { DateTime } from "luxon";
 import { schedulerConfig } from "../config/scheduler.js";
 import { getActiveShifts } from "./schedule.js";
+import { getUpcomingWeekendGroup } from "./rotation.js";
 import {
   now,
   isWeekend,
   getPingIntervalMinutes,
   getShiftEndLocal,
+  convertToLocal,
 } from "../utils/time.js";
 import {
   getAllMods,
+  getMod,
   getPingState,
   getAllPingStates,
   updateLastPingTime,
   setShiftStarted,
   resetPingState,
   getPingChannelId,
+  getSetting,
+  setSetting,
 } from "../db/database.js";
 
 const TICK_INTERVAL_MS = 60_000; // 60 seconds
@@ -99,6 +104,9 @@ async function tick() {
         }
       }
     }
+
+    // Monday/Wednesday weekend on-call heads-up
+    await weekendHeadsUp(currentTime, channelId);
   } catch (err) {
     console.error("[PingEngine] Tick error:", err);
   } finally {
@@ -112,21 +120,26 @@ async function tick() {
 /**
  * Handle a mod who is currently on shift.
  * Sends shift-start notification (FR11) and periodic reminders (FR12).
+ * Routes to DM or channel mention based on mod's notify_preference.
  *
- * @param {object} mod - Mod from DB { config_name, discord_user_id, timezone }
+ * @param {object} mod - Mod from DB { config_name, discord_user_id, timezone, notify_preference }
  * @param {object} shift - Active shift { mod, start, end, isWeekendShift }
  * @param {object} pingState - DB state { config_name, last_ping_at, shift_started }
  * @param {DateTime} currentTime
  * @param {string} channelId
  */
 async function handleOnShiftMod(mod, shift, pingState, currentTime, channelId) {
+  const preference = mod.notify_preference || "dm";
+
   // FR11: Shift-start notification
   if (!pingState || !pingState.shift_started) {
     const endTimeLocal = getShiftEndLocal(shift, mod.timezone, currentTime);
 
-    await sendEphemeralPing(
+    await sendPing(
       channelId,
       mod.discord_user_id,
+      mod.config_name,
+      preference,
       `🔔 **Your shift starts now!** You're on duty until **${endTimeLocal}**.`
     );
 
@@ -147,9 +160,11 @@ async function handleOnShiftMod(mod, shift, pingState, currentTime, channelId) {
     if (minutesSinceLastPing >= intervalMinutes) {
       const endTimeLocal = getShiftEndLocal(shift, mod.timezone, currentTime);
 
-      await sendEphemeralPing(
+      await sendPing(
         channelId,
         mod.discord_user_id,
+        mod.config_name,
+        preference,
         `⏰ **Shift reminder** — you're on duty until **${endTimeLocal}**.`
       );
 
@@ -159,42 +174,127 @@ async function handleOnShiftMod(mod, shift, pingState, currentTime, channelId) {
 }
 
 /**
- * Send an ephemeral-like message to a specific user in the ping channel.
+ * Send a notification to a mod based on their notify_preference ('dm' | 'channel').
+ * Also sends an admin copy to the scheduler channel for visibility.
  *
- * Note: True ephemeral messages require an interaction (slash command).
- * For proactive pings, we send a DM or a mention that auto-deletes.
- * Best approach: send a DM to the user from the bot.
- *
- * @param {string} channelId
- * @param {string} userId
- * @param {string} message
+ * @param {string} channelId - The configured scheduler channel
+ * @param {string} userId - Mod's Discord user ID
+ * @param {string} configName - Mod's config name (e.g. QUEEN)
+ * @param {string} preference - 'dm' or 'channel'
+ * @param {string} message - The notification text
  */
-async function sendEphemeralPing(channelId, userId, message) {
+async function sendPing(channelId, userId, configName, preference, message) {
   if (!discordClient) return;
 
-  try {
-    // Send as DM for true privacy (ephemeral-like behavior)
-    const user = await discordClient.users.fetch(userId);
-    if (user) {
-      await user.send(message);
-    }
-  } catch (err) {
-    // Fallback: try sending in channel with user mention
-    // (user may have DMs disabled)
+  const channel = await discordClient.channels.fetch(channelId).catch(() => null);
+
+  if (preference === "dm") {
+    // --- DM mode ---
     try {
-      const channel = await discordClient.channels.fetch(channelId);
-      if (channel) {
-        const msg = await channel.send(`<@${userId}> ${message}`);
-        // Auto-delete after 30 seconds to reduce noise
-        setTimeout(() => {
-          msg.delete().catch(() => {});
-        }, 30_000);
+      const user = await discordClient.users.fetch(userId);
+      if (user) {
+        await user.send(message);
       }
-    } catch (fallbackErr) {
-      console.error(
-        `[PingEngine] Failed to ping ${userId}:`,
-        fallbackErr.message
+    } catch (err) {
+      // Fallback: DMs disabled → send channel mention instead
+      if (channel) {
+        await channel.send(`<@${userId}> ${message}`).catch((e) =>
+          console.error(`[PingEngine] Fallback channel ping failed for ${configName}:`, e.message)
+        );
+      }
+    }
+  } else {
+    // --- Channel mention mode ---
+    if (channel) {
+      await channel.send(`<@${userId}> ${message}`).catch((e) =>
+        console.error(`[PingEngine] Channel ping failed for ${configName}:`, e.message)
       );
     }
+  }
+
+  // --- Admin notification in channel (always) ---
+  await sendAdminNotification(channel, configName, message);
+}
+
+/**
+ * Post a non-pinging admin-visible log message in the scheduler channel.
+ * @param {import('discord.js').TextChannel|null} channel
+ * @param {string} configName
+ * @param {string} message
+ */
+async function sendAdminNotification(channel, configName, message) {
+  if (!channel) return;
+
+  try {
+    const adminRoleName = process.env.ADMIN_ROLE_NAME || "Admin";
+    const guild = channel.guild;
+    const adminRole = guild.roles.cache.find((r) => r.name === adminRoleName);
+    const roleMention = adminRole ? `<@&${adminRole.id}>` : `@${adminRoleName}`;
+
+    await channel.send(
+      `📋 **[Admin Log]** ${roleMention} — **${configName}** ${message}`
+    );
+  } catch (err) {
+    console.error(`[PingEngine] Admin notification failed:`, err.message);
+  }
+}
+
+/**
+ * Send a "Weekend On-Call Heads Up" reminder on Monday and Wednesday at 10:00 AM CST.
+ * Uses a DB setting to ensure it only fires once per day.
+ *
+ * @param {DateTime} currentTime - Current time in base timezone
+ * @param {string} channelId - Scheduler channel ID
+ */
+async function weekendHeadsUp(currentTime, channelId) {
+  const dayOfWeek = currentTime.weekday; // 1=Mon, 3=Wed
+  const hour = currentTime.hour;
+  const minute = currentTime.minute;
+
+  // Only fire on Monday (1) or Wednesday (3) during the 10:00 AM window
+  if (dayOfWeek !== 1 && dayOfWeek !== 3) return;
+  if (hour !== 10 || minute > 0) return;
+
+  // Check if we already sent today
+  const todayKey = currentTime.toISODate(); // e.g. "2026-02-16"
+  const lastSent = getSetting("last_headsup_date");
+  if (lastSent === todayKey) return;
+
+  // Mark as sent immediately to prevent duplicates
+  setSetting("last_headsup_date", todayKey);
+
+  const channel = await discordClient.channels.fetch(channelId).catch(() => null);
+  if (!channel) return;
+
+  try {
+    const upcoming = getUpcomingWeekendGroup(currentTime);
+    const satDate = upcoming.weekendSaturday.toFormat("LLL d");
+    const sunDate = upcoming.weekendSunday.toFormat("LLL d");
+
+    // Build shift lines with local times for each registered mod
+    const shiftLines = [];
+    for (const shift of upcoming.shifts) {
+      const modData = getMod(shift.mod.toUpperCase());
+      const modMention = modData ? `<@${modData.discord_user_id}>` : `**${shift.mod}**`;
+      const tz = modData ? modData.timezone : schedulerConfig.baseTimezone;
+
+      const localStart = convertToLocal(shift.start, tz, currentTime);
+      const localEnd = convertToLocal(shift.end, tz, currentTime);
+
+      shiftLines.push(`• ${modMention} (**${shift.mod}**) — ${localStart} → ${localEnd}`);
+    }
+
+    const dayLabel = dayOfWeek === 1 ? "Monday" : "Wednesday";
+
+    await channel.send(
+      `📅 **Weekend On-Call Heads Up!** *(${dayLabel} reminder)*\n` +
+      `This weekend is **${upcoming.name}** (${satDate}–${sunDate})\n\n` +
+      `🕐 **Shifts (each mod's local time):**\n` +
+      shiftLines.join("\n")
+    );
+
+    console.log(`[PingEngine] Sent ${dayLabel} weekend heads-up for ${upcoming.name}`);
+  } catch (err) {
+    console.error("[PingEngine] Weekend heads-up failed:", err.message);
   }
 }

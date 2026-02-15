@@ -6,6 +6,7 @@ import { data as setChannel } from "./set-channel.js";
 import { data as weekendOncall } from "./weekend-oncall.js";
 import { data as myShifts } from "./my-shifts.js";
 import { data as onDuty } from "./on-duty.js";
+import { data as notifyPreference } from "./notify-preference.js";
 
 config();
 
@@ -16,6 +17,7 @@ const commands = [
   weekendOncall,
   myShifts,
   onDuty,
+  notifyPreference,
 ].map((cmd) => cmd.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
