@@ -10,8 +10,8 @@ export const data = new SlashCommandBuilder()
       .setDescription("How you want to be notified")
       .setRequired(true)
       .addChoices(
-        { name: "DM (private message)", value: "dm" },
-        { name: "Channel mention (in #os-scheduler)", value: "channel" }
+        { name: "DM — shift start + periodic reminders", value: "dm" },
+        { name: "Channel — shift start notification only", value: "channel" }
       )
   );
 
@@ -35,8 +35,12 @@ export async function execute(interaction) {
 
   const label = mode === "dm" ? "📩 DM (private message)" : "📢 Channel mention";
 
+  const description = mode === "dm"
+    ? "You'll get a DM when your shift starts **plus** periodic reminders every 30min (weekday) / 45min (weekend)."
+    : "You'll get an @mention in the scheduler channel **only** when your shift starts. No repeated reminders.";
+
   return interaction.reply({
-    content: `✅ Your notification preference is now set to **${label}**.\nYou'll receive shift reminders ${mode === "dm" ? "as a DM from the bot" : "as a mention in the scheduler channel"}.`,
+    content: `✅ Your notification preference is now set to **${label}**.\n${description}`,
     ephemeral: true,
   });
 }

@@ -149,7 +149,9 @@ async function handleOnShiftMod(mod, shift, pingState, currentTime, channelId) {
     return; // Don't also send a periodic ping on the same tick
   }
 
-  // FR12: Periodic reminders at configured intervals
+  // FR12: Periodic reminders — only for DM users (channel users get shift-start only)
+  if (preference !== "dm") return;
+
   const intervalMinutes = shift.isWeekendShift
     ? schedulerConfig.pingIntervals.weekendMinutes
     : schedulerConfig.pingIntervals.weekdayMinutes;
