@@ -140,7 +140,8 @@ async function handleOnShiftMod(mod, shift, pingState, currentTime, channelId) {
       mod.discord_user_id,
       mod.config_name,
       preference,
-      `🔔 **Your shift starts now!** You're on duty until **${endTimeLocal}**.`
+      `🔔 **Your shift starts now!** You're on duty until **${endTimeLocal}**.`,
+      true // isShiftStart — allow channel fallback if DM fails
     );
 
     setShiftStarted(mod.config_name, true);
@@ -185,7 +186,10 @@ async function handleOnShiftMod(mod, shift, pingState, currentTime, channelId) {
  * @param {string} preference - 'dm' or 'channel'
  * @param {string} message - The notification text
  */
-async function sendPing(channelId, userId, configName, preference, message) {
+/**
+ * @param {boolean} isShiftStart - If true, DM failures fall back to channel. If false, skip silently.
+ */
+async function sendPing(channelId, userId, configName, preference, message, isShiftStart = false) {
   if (!discordClient) return;
 
   const channel = await discordClient.channels.fetch(channelId).catch(() => null);
@@ -198,22 +202,23 @@ async function sendPing(channelId, userId, configName, preference, message) {
         await user.send(message);
       }
     } catch (err) {
-      // Fallback: DMs disabled → send channel mention instead
-      if (channel) {
+      // Only fall back to channel for shift-start notifications
+      if (isShiftStart && channel) {
         await channel.send(`<@${userId}> ${message}`).catch((e) =>
           console.error(`[PingEngine] Fallback channel ping failed for ${configName}:`, e.message)
         );
+      } else {
+        console.warn(`[PingEngine] DM failed for ${configName}, skipping periodic reminder`);
       }
     }
   } else {
-    // --- Channel mention mode ---
+    // --- Channel mention mode (shift-start only, enforced by caller) ---
     if (channel) {
       await channel.send(`<@${userId}> ${message}`).catch((e) =>
         console.error(`[PingEngine] Channel ping failed for ${configName}:`, e.message)
       );
     }
   }
-
 }
 
 
