@@ -22,12 +22,9 @@ export const schedulerConfig = {
   weekdayShifts: [
     { mod: "QUEEN", start: "22:00", end: "03:00" },
     { mod: "ED", start: "02:00", end: "07:00" },
-    { mod: "HAAX", start: "07:00", end: "12:00" },
+    { mod: "WOODS", start: "07:00", end: "12:00" },
     { mod: "KLABO", start: "12:00", end: "17:00" },
     { mod: "BGAMES", start: "17:00", end: "22:00" },
-    { mod: "WOODS", start: "10:00", end: "12:00" },
-    { mod: "WOODS", start: "13:00", end: "15:00" },
-    { mod: "WOODS", start: "17:00", end: "18:00" },
   ],
 
   weekendRotation: {
@@ -39,7 +36,7 @@ export const schedulerConfig = {
         name: "WEEKEND1",
         shifts: [
           { mod: "ED", start: "00:00", end: "07:00" },
-          { mod: "HAAX", start: "07:00", end: "19:00" },
+          { mod: "WOODS", start: "07:00", end: "19:00" },
           { mod: "ED", start: "19:00", end: "24:00" },
         ],
       },
