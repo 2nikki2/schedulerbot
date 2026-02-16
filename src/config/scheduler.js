@@ -36,7 +36,7 @@ export const schedulerConfig = {
         name: "WEEKEND1",
         shifts: [
           { mod: "ED", start: "00:00", end: "07:00" },
-          { mod: "WOODS", start: "07:00", end: "19:00" },
+          { mod: "KLABO", start: "07:00", end: "19:00" },
           { mod: "ED", start: "19:00", end: "24:00" },
         ],
       },
