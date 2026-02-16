@@ -84,8 +84,8 @@ export function getUpcomingWeekendGroup(dt) {
 
   const isFridayAfter19 = weekday === 5 && hour >= 19;
   const isSaturday = weekday === 6;
-  const isSundayBefore19 = weekday === 7 && hour < 19;
-  const inWeekendWindow = isFridayAfter19 || isSaturday || isSundayBefore19;
+  const isSunday = weekday === 7;
+  const inWeekendWindow = isFridayAfter19 || isSaturday || isSunday;
 
   if (inWeekendWindow) {
     // We're in the current weekend — use now

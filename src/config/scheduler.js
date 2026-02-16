@@ -11,7 +11,7 @@ export const schedulerConfig = {
     startDay: 5,     // Friday (Luxon: 1=Mon, 5=Fri)
     startHour: 19,
     endDay: 7,       // Sunday (Luxon: 7=Sun)
-    endHour: 19,
+    endHour: 24,     // Full Sunday — weekend rotation covers until midnight
   },
 
   pingIntervals: {
