@@ -20,7 +20,6 @@ import {
   getPingChannelId,
   getSetting,
   setSetting,
-  getAllAdmins,
 } from "../db/database.js";
 
 const TICK_INTERVAL_MS = 60_000; // 60 seconds
@@ -215,39 +214,8 @@ async function sendPing(channelId, userId, configName, preference, message) {
     }
   }
 
-  // --- Admin notification in channel (always) ---
-  await sendAdminNotification(channel, configName, message);
 }
 
-/**
- * Send an admin log message in the scheduler channel that @mentions
- * each registered admin, then auto-deletes after 10 seconds.
- * Admins get the notification ping; the channel stays clean.
- *
- * @param {import('discord.js').TextChannel|null} channel - Scheduler channel
- * @param {string} configName - Mod config name
- * @param {string} message - The notification text
- */
-async function sendAdminNotification(channel, configName, message) {
-  if (!channel) return;
-
-  const admins = getAllAdmins();
-  if (admins.length === 0) return;
-
-  const mentions = admins.map((a) => `<@${a.discord_user_id}>`).join(" ");
-
-  try {
-    const msg = await channel.send(
-      `📋 **[Admin Log]** ${mentions} — **${configName}** ${message}`
-    );
-    // Auto-delete after 10 seconds so the channel stays clean
-    setTimeout(() => {
-      msg.delete().catch(() => {});
-    }, 10_000);
-  } catch (err) {
-    console.error(`[PingEngine] Admin notification failed:`, err.message);
-  }
-}
 
 /**
  * Send a "Weekend On-Call Heads Up" reminder on Monday and Wednesday at 10:00 AM CST.
