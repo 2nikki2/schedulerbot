@@ -73,19 +73,19 @@ export function getActiveWeekendGroup(dt) {
 export function getUpcomingWeekendGroup(dt) {
   const current = dt || now();
 
-  // Find the next Friday 19:00 (or current weekend if we're in one)
+  // Find the next Friday 22:00 (or current weekend if we're in one)
   let target = current;
 
-  // If we're before Friday 19:00 this week, target this coming Friday
-  // If we're in the weekend window, use current time
-  // If we're after Sunday 19:00, target next Friday
+  // If we're before Friday 22:00 this week, target this coming Friday
+  // If we're in the weekend window (Fri 22:00 → Sun 22:00), use current time
+  // If we're after Sunday 22:00, target next Friday
   const weekday = current.weekday;
   const hour = current.hour;
 
-  const isFridayAfter19 = weekday === 5 && hour >= 19;
+  const isFridayAfter22 = weekday === 5 && hour >= 22;
   const isSaturday = weekday === 6;
-  const isSunday = weekday === 7;
-  const inWeekendWindow = isFridayAfter19 || isSaturday || isSunday;
+  const isSundayBefore22 = weekday === 7 && hour < 22;
+  const inWeekendWindow = isFridayAfter22 || isSaturday || isSundayBefore22;
 
   if (inWeekendWindow) {
     // We're in the current weekend — use now
@@ -94,10 +94,10 @@ export function getUpcomingWeekendGroup(dt) {
     // Find the next Friday
     let daysUntilFriday = (5 - weekday + 7) % 7;
     if (daysUntilFriday === 0) {
-      // It's Friday but before 19:00 — use today
+      // It's Friday but before 22:00 — use today
       daysUntilFriday = 0;
     }
-    target = current.plus({ days: daysUntilFriday }).set({ hour: 19, minute: 0 });
+    target = current.plus({ days: daysUntilFriday }).set({ hour: 22, minute: 0 });
   }
 
   const group = getActiveWeekendGroup(target);
@@ -115,7 +115,7 @@ export function getUpcomingWeekendGroup(dt) {
 
   return {
     ...group,
-    weekendStart: saturday.startOf("day").minus({ hours: 5 }), // Friday 19:00
+    weekendStart: saturday.startOf("day").minus({ hours: 2 }), // Friday 22:00
     weekendSaturday: saturday.startOf("day"),
     weekendSunday: saturday.plus({ days: 1 }).startOf("day"),
   };

@@ -23,7 +23,7 @@ export function parseTime(timeStr) {
 
 /**
  * Check if a given DateTime falls within the weekend window.
- * Weekend = Friday 19:00 → Sunday 19:00 in base timezone. (FR3)
+ * Weekend = Friday 22:00 → Sunday 22:00 in base timezone. (FR3)
  *
  * @param {DateTime} dt - DateTime in base timezone
  * @returns {boolean}
@@ -38,7 +38,7 @@ export function isWeekend(dt) {
   const startMinutes = weekendWindow.startHour * 60;
   const endMinutes = weekendWindow.endHour * 60;
 
-  // Friday: weekend starts at 19:00
+  // Friday: weekend starts at 22:00
   if (weekday === weekendWindow.startDay) {
     return timeMinutes >= startMinutes;
   }
@@ -48,7 +48,7 @@ export function isWeekend(dt) {
     return true;
   }
 
-  // Sunday: weekend until 19:00
+  // Sunday: weekend until 22:00
   if (weekday === weekendWindow.endDay) {
     return timeMinutes < endMinutes;
   }
