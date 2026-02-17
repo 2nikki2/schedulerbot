@@ -17,7 +17,7 @@ export async function execute(interaction) {
     modList = mods
       .map(
         (m) =>
-          `• <@${m.discord_user_id}> — **${m.config_name}** · \`${m.timezone}\` · ${m.notify_preference === "dm" ? "📩 DM" : "📢 Channel"}`
+          `• <@${m.discord_user_id}> — **${m.config_name}** · \`${m.timezone}\` · ${{ dm: "📩 DM", channel: "📢 Channel", none: "🔕 Off" }[m.notify_preference] || "📩 DM"}`
       )
       .join("\n");
   } else {

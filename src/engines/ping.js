@@ -131,6 +131,9 @@ async function tick() {
 async function handleOnShiftMod(mod, shift, pingState, currentTime, channelId) {
   const preference = mod.notify_preference || "dm";
 
+  // Opted out — no notifications at all
+  if (preference === "none") return;
+
   // FR11: Shift-start notification
   if (!pingState || !pingState.shift_started) {
     const endTimeLocal = getShiftEndLocal(shift, mod.timezone, currentTime);

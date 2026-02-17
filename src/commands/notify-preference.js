@@ -3,7 +3,7 @@ import { getModByUserId, setNotifyPreference } from "../db/database.js";
 
 export const data = new SlashCommandBuilder()
   .setName("notify-preference")
-  .setDescription("Choose how you receive shift reminders: DM or channel mention")
+  .setDescription("Choose how you receive shift reminders: DM, channel mention, or opt out")
   .addStringOption((opt) =>
     opt
       .setName("mode")
@@ -11,7 +11,8 @@ export const data = new SlashCommandBuilder()
       .setRequired(true)
       .addChoices(
         { name: "DM — shift start + periodic reminders", value: "dm" },
-        { name: "Channel — shift start notification only", value: "channel" }
+        { name: "Channel — shift start notification only", value: "channel" },
+        { name: "None — opt out of all notifications", value: "none" }
       )
   );
 
@@ -33,11 +34,19 @@ export async function execute(interaction) {
 
   setNotifyPreference(mod.config_name, mode);
 
-  const label = mode === "dm" ? "📩 DM (private message)" : "📢 Channel mention";
+  const labels = {
+    dm: "📩 DM (private message)",
+    channel: "📢 Channel mention",
+    none: "🔕 None (opted out)",
+  };
+  const descriptions = {
+    dm: "You'll get a DM when your shift starts **plus** periodic reminders every 30min (weekday) / 45min (weekend).",
+    channel: "You'll get an @mention in the scheduler channel **only** when your shift starts. No repeated reminders.",
+    none: "You won't receive any shift notifications. You can change this anytime by running `/notify-preference` again.",
+  };
 
-  const description = mode === "dm"
-    ? "You'll get a DM when your shift starts **plus** periodic reminders every 30min (weekday) / 45min (weekend)."
-    : "You'll get an @mention in the scheduler channel **only** when your shift starts. No repeated reminders.";
+  const label = labels[mode];
+  const description = descriptions[mode];
 
   return interaction.reply({
     content: `✅ Your notification preference is now set to **${label}**.\n${description}`,
