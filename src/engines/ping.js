@@ -6,8 +6,9 @@ import {
   now,
   isWeekend,
   getPingIntervalMinutes,
-  getShiftEndLocal,
-  convertToLocal,
+  getShiftEndDt,
+  toDiscordTs,
+  timeStrToDateTime,
 } from "../utils/time.js";
 import {
   getAllMods,
@@ -136,14 +137,14 @@ async function handleOnShiftMod(mod, shift, pingState, currentTime, channelId) {
 
   // FR11: Shift-start notification
   if (!pingState || !pingState.shift_started) {
-    const endTimeLocal = getShiftEndLocal(shift, mod.timezone, currentTime);
+    const endTs = toDiscordTs(getShiftEndDt(shift, currentTime), "t");
 
     await sendPing(
       channelId,
       mod.discord_user_id,
       mod.config_name,
       preference,
-      `🔔 **Your shift starts now!** You're on duty until **${endTimeLocal}**.`,
+      `🔔 **Your shift starts now!** You're on duty until ${endTs}.`,
       true // isShiftStart — allow channel fallback if DM fails
     );
 
@@ -164,14 +165,14 @@ async function handleOnShiftMod(mod, shift, pingState, currentTime, channelId) {
     const minutesSinceLastPing = currentTime.diff(lastPing, "minutes").minutes;
 
     if (minutesSinceLastPing >= intervalMinutes) {
-      const endTimeLocal = getShiftEndLocal(shift, mod.timezone, currentTime);
+      const endTs = toDiscordTs(getShiftEndDt(shift, currentTime), "t");
 
       await sendPing(
         channelId,
         mod.discord_user_id,
         mod.config_name,
         preference,
-        `⏰ **Shift reminder** — you're on duty until **${endTimeLocal}**.`
+        `⏰ **Shift reminder** — you're on duty until ${endTs}.`
       );
 
       updateLastPingTime(mod.config_name, currentTime.toISO());
@@ -257,17 +258,16 @@ async function weekendHeadsUp(currentTime, channelId) {
     const satDate = upcoming.weekendSaturday.toFormat("LLL d");
     const sunDate = upcoming.weekendSunday.toFormat("LLL d");
 
-    // Build shift lines with local times for each registered mod
+    // Build shift lines using Discord timestamps (auto local time for every reader)
     const shiftLines = [];
     for (const shift of upcoming.shifts) {
       const modData = getMod(shift.mod.toUpperCase());
       const modMention = modData ? `<@${modData.discord_user_id}>` : `**${shift.mod}**`;
-      const tz = modData ? modData.timezone : schedulerConfig.baseTimezone;
 
-      const localStart = convertToLocal(shift.start, tz, currentTime);
-      const localEnd = convertToLocal(shift.end, tz, currentTime);
+      const startDt = timeStrToDateTime(shift.start, upcoming.weekendSaturday);
+      const endDt = timeStrToDateTime(shift.end, upcoming.weekendSaturday);
 
-      shiftLines.push(`• ${modMention} (**${shift.mod}**) — ${localStart} → ${localEnd}`);
+      shiftLines.push(`• ${modMention} (**${shift.mod}**) — ${toDiscordTs(startDt, "t")} → ${toDiscordTs(endDt, "t")}`);
     }
 
     const dayLabel = dayOfWeek === 1 ? "Monday" : "Wednesday";
@@ -275,7 +275,7 @@ async function weekendHeadsUp(currentTime, channelId) {
     await channel.send(
       `📅 **Weekend On-Call Heads Up!** *(${dayLabel} reminder)*\n` +
       `This weekend is **${upcoming.name}** (${satDate}–${sunDate})\n\n` +
-      `🕐 **Shifts (each mod's local time):**\n` +
+      `🕐 **Shifts:**\n` +
       shiftLines.join("\n")
     );
 

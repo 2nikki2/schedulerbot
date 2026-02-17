@@ -1,8 +1,7 @@
 import { SlashCommandBuilder } from "discord.js";
 import { getUpcomingWeekendGroup } from "../engines/rotation.js";
-import { getModByUserId, getAllMods } from "../db/database.js";
-import { now, isWeekend } from "../utils/time.js";
-import { schedulerConfig } from "../config/scheduler.js";
+import { getAllMods } from "../db/database.js";
+import { now, isWeekend, toDiscordTs } from "../utils/time.js";
 
 export const data = new SlashCommandBuilder()
   .setName("weekend-oncall")
@@ -20,12 +19,6 @@ export async function execute(interaction) {
       ephemeral: true,
     });
   }
-
-  // Determine requester's timezone for display
-  const requesterMod = getModByUserId(interaction.user.id);
-  const displayTz = requesterMod
-    ? requesterMod.timezone
-    : schedulerConfig.baseTimezone;
 
   // Build the roster display
   const saturday = upcoming.weekendSaturday;
@@ -76,18 +69,16 @@ export async function execute(interaction) {
     { label: "Sun eve",   mod: nightMod, start: sunday.set({ hour: 19, minute: 0 }), end: sunday.set({ hour: 22, minute: 0 }) },
   ];
 
-  // Format each timeline entry in the requester's timezone
-  const fmt = (dt) => dt.setZone(displayTz).toFormat("EEE h:mm a");
-
+  // Format each timeline entry using Discord timestamps (auto local time)
   const shiftLines = timeline
-    .map((t) => `• ${mention(t.mod)} — ${fmt(t.start)} → ${fmt(t.end)}`)
+    .map((t) => `• ${mention(t.mod)} — ${toDiscordTs(t.start, "f")} → ${toDiscordTs(t.end, "t")}`)
     .join("\n");
 
   const response = [
     `📅 **${headerLabel} On-Call (${dateRange})**`,
     `🔄 Rotation: **${upcoming.name}**`,
     ``,
-    `**Schedule** _(your local time)_:`,
+    `**Schedule:**`,
     shiftLines,
   ].join("\n");
 

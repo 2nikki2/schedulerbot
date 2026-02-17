@@ -88,6 +88,22 @@ export function isOnShift(shift, currentTime) {
 }
 
 /**
+ * Convert a wall-clock time string (HH:mm) in the base timezone to a Luxon DateTime.
+ *
+ * @param {string} timeStr - Time string in HH:mm format (base timezone)
+ * @param {DateTime} [referenceDate] - Date context for DST-correct conversion
+ * @returns {DateTime} Luxon DateTime in the base timezone
+ */
+export function timeStrToDateTime(timeStr, referenceDate) {
+  const ref = referenceDate || now();
+  if (timeStr === "24:00") {
+    return ref.set({ hour: 0, minute: 0, second: 0, millisecond: 0 }).plus({ days: 1 });
+  }
+  const { hour, minute } = parseTime(timeStr);
+  return ref.set({ hour, minute, second: 0, millisecond: 0 });
+}
+
+/**
  * Convert a time string from base timezone to a mod's local timezone for display.
  *
  * @param {string} timeStr - Time string in HH:mm format (base timezone)
@@ -96,30 +112,20 @@ export function isOnShift(shift, currentTime) {
  * @returns {string} Formatted time string in the target timezone (e.g., "3:00 PM EST")
  */
 export function convertToLocal(timeStr, targetTimezone, referenceDate) {
-  const ref = referenceDate || now();
-  const { hour, minute } = parseTime(timeStr);
-
-  // Handle "24:00" as next day 00:00
-  let dt;
-  if (timeStr === "24:00") {
-    dt = ref.set({ hour: 0, minute: 0, second: 0, millisecond: 0 }).plus({ days: 1 });
-  } else {
-    dt = ref.set({ hour, minute, second: 0, millisecond: 0 });
-  }
-
+  const dt = timeStrToDateTime(timeStr, referenceDate);
   const local = dt.setZone(targetTimezone);
   return local.toFormat("h:mm a ZZZZ");
 }
 
 /**
- * Get the end time of a shift as a DateTime for display purposes.
+ * Get the end time of a shift as a Luxon DateTime (in base timezone).
+ * Handles midnight-crossing shifts where end < start.
  *
  * @param {{ start: string, end: string }} shift
- * @param {string} targetTimezone
  * @param {DateTime} [referenceDate]
- * @returns {string}
+ * @returns {DateTime}
  */
-export function getShiftEndLocal(shift, targetTimezone, referenceDate) {
+export function getShiftEndDt(shift, referenceDate) {
   const ref = referenceDate || now();
   const start = parseTime(shift.start);
   const end = parseTime(shift.end);
@@ -138,7 +144,35 @@ export function getShiftEndLocal(shift, targetTimezone, referenceDate) {
     endDt = endDt.plus({ days: 1 });
   }
 
-  return endDt.setZone(targetTimezone).toFormat("h:mm a ZZZZ");
+  return endDt;
+}
+
+/**
+ * Legacy wrapper — returns formatted string. Prefer getShiftEndDt + toDiscordTs instead.
+ */
+export function getShiftEndLocal(shift, targetTimezone, referenceDate) {
+  return getShiftEndDt(shift, referenceDate).setZone(targetTimezone).toFormat("h:mm a ZZZZ");
+}
+
+/**
+ * Format a Luxon DateTime as a Discord timestamp string.
+ * Discord renders these in each user's local time automatically.
+ *
+ * Styles:
+ *   t = short time (9:41 PM)
+ *   T = long time (9:41:30 PM)
+ *   d = short date (06/27/2023)
+ *   D = long date (June 27, 2023)
+ *   f = short date/time (June 27, 2023 9:41 PM)
+ *   F = long date/time (Tuesday, June 27, 2023 9:41 PM)
+ *   R = relative (2 hours ago)
+ *
+ * @param {DateTime} dt - Luxon DateTime
+ * @param {string} [style="t"] - Discord timestamp style letter
+ * @returns {string} e.g. "<t:1234567890:t>"
+ */
+export function toDiscordTs(dt, style = "t") {
+  return `<t:${Math.floor(dt.toSeconds())}:${style}>`;
 }
 
 /**

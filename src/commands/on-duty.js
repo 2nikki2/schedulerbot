@@ -1,8 +1,7 @@
 import { SlashCommandBuilder } from "discord.js";
 import { getActiveShifts } from "../engines/schedule.js";
 import { getAllMods } from "../db/database.js";
-import { now, isWeekend, convertToLocal, getShiftEndLocal } from "../utils/time.js";
-import { schedulerConfig } from "../config/scheduler.js";
+import { now, isWeekend, getShiftEndDt, toDiscordTs } from "../utils/time.js";
 import { getActiveWeekendGroup } from "../engines/rotation.js";
 
 export const data = new SlashCommandBuilder()
@@ -29,22 +28,14 @@ export async function execute(interaction) {
     allMods.map((m) => [m.config_name.toUpperCase(), m])
   );
 
-  // Determine display timezone (use requester's if registered, else base)
-  const requesterMod = allMods.find(
-    (m) => m.discord_user_id === interaction.user.id
-  );
-  const displayTz = requesterMod
-    ? requesterMod.timezone
-    : schedulerConfig.baseTimezone;
-
   let lines = "";
   for (const shift of activeShifts) {
     const modData = modLookup.get(shift.mod.toUpperCase());
     const userDisplay = modData
       ? `<@${modData.discord_user_id}>`
       : `**${shift.mod}**`;
-    const endLocal = getShiftEndLocal(shift, displayTz, currentTime);
-    lines += `• ${userDisplay} — until ${endLocal}\n`;
+    const endDt = getShiftEndDt(shift, currentTime);
+    lines += `• ${userDisplay} — until ${toDiscordTs(endDt, "t")}\n`;
   }
 
   const scheduleType = weekend ? "🗓️ Weekend Rotation" : "📅 Weekday Schedule";
@@ -56,7 +47,6 @@ export async function execute(interaction) {
 
   const response = [
     `🟢 **Currently On Duty** — ${scheduleType}${rotationInfo}`,
-    `_(times in ${displayTz})_`,
     ``,
     lines.trim(),
   ].join("\n");
