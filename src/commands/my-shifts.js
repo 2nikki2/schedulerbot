@@ -64,7 +64,7 @@ export async function execute(interaction) {
   const response = [
     `📋 **Schedule for ${mod.config_name}**`,
     ``,
-    `**Weekday Shifts (Sun–Fri):**`,
+    `**Weekday Shifts (Mon–Fri):**`,
     weekdayLines.trim(),
     ``,
     `**Weekend Rotation Shifts:**`,
